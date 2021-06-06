@@ -21,9 +21,6 @@ bl_info = {
 
 def main(context):
 
-    # Select object view
-    # bpy.ops.object.mode_set(mode="OBJECT")
-
     # Auto select the camera
     objects = bpy.context.scene.objects
     for obj in objects:
@@ -56,9 +53,10 @@ def main(context):
         export_draco_mesh_compression_enable=context.scene.draco)
 
     # reselect a context to trigger undo
-    for obj in objects:
-        obj.select_set(obj.type == "CAMERA")
-
+    # for obj in objects:
+    # obj.select_set(obj.type == "CAMERA")
+    # bpy.ops.object.mode_set(mode="OBJECT")
+    # bpy.ops.object.mode_set()
     pass
 
 
@@ -84,7 +82,6 @@ def main_gltf(context):
 class SimpleGLTF(bpy.types.Operator):
     bl_idname = "object.simple_gltf"
     bl_label = "Quick Scene Export"
-    bl_options = {"REGISTER", "UNDO"}
 
     def execute(self, context):
         try:
@@ -99,13 +96,16 @@ class SimpleGLTF(bpy.types.Operator):
 class BakeCamera(bpy.types.Operator):
     bl_idname = "object.simple_operator"
     bl_label = "Camera Bake Export"
-    bl_options = {"REGISTER", "UNDO"}
 
     def execute(self, context):
         try:
+            # preevent the undo to not work
+            bpy.ops.object.mode_set(mode="OBJECT")
+            bpy.ops.object.select_all(action='DESELECT')
+            bpy.ops.ed.undo_push()
             main(context)
             # undo bake script
-            bpy.ops.ed.undo_push()
+            bpy.ops.ed.undo()
             return {'FINISHED'}
         except Exception as e:
             print("something went wrong")
