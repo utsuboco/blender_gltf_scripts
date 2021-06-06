@@ -50,13 +50,9 @@ def main(context):
         export_format='GLB',
         ui_tab='GENERAL',
         use_selection=True,
+        export_draco_mesh_compression_level=context.scene.draco_level,
         export_draco_mesh_compression_enable=context.scene.draco)
 
-    # reselect a context to trigger undo
-    # for obj in objects:
-    # obj.select_set(obj.type == "CAMERA")
-    # bpy.ops.object.mode_set(mode="OBJECT")
-    # bpy.ops.object.mode_set()
     pass
 
 
@@ -68,6 +64,14 @@ def main_gltf(context):
         basedir = bpy.path.abspath(context.scene.dir_path)
 
     name = os.path.splitext(os.path.basename(bpy.data.filepath))[0]
+
+    if context.scene.filename_path:
+        name = context.scene.filename_path
+
+    if not name:
+        context.scene.filename_path = 'scene'
+        name = 'scene'
+
     fn = os.path.join(basedir, name)
 
     bpy.ops.export_scene.gltf(
@@ -75,6 +79,7 @@ def main_gltf(context):
         check_existing=True,
         export_format='GLB',
         ui_tab='GENERAL',
+        export_draco_mesh_compression_level=context.scene.draco_level,
         export_draco_mesh_compression_enable=context.scene.draco)
     pass
 
@@ -123,14 +128,13 @@ class GLTF_PT_Panel(bpy.types.Panel):
     def draw(self, context):
         layout = self.layout
 
-        obj = context.object
-
         col = layout.column()
         col.prop(context.scene, 'dir_path')
+        col.prop(context.scene, 'filename_path')
 
-        col2 = layout.column()
+        col2 = layout.column(align=True)
         col2.prop(context.scene, 'draco')
-
+        col2.prop(context.scene, 'draco_level')
         layout.operator('object.simple_operator', icon='VIEW_CAMERA')
         layout.operator('object.simple_gltf', icon='SHADERFX')
 
@@ -149,11 +153,24 @@ def register():
         description="Define the glb path of the project",
         subtype='DIR_PATH'
     )
+    bpy.types.Scene.filename_path = bpy.props.StringProperty(
+        name="Name",
+        default="",
+        description="Define the filename of the exported glb",
+    )
     bpy.types.Scene.draco = bpy.props.BoolProperty(
         name="Use Draco compression",
         description="Use Draco Compression",
         default=False
     )
+    bpy.types.Scene.draco_level = bpy.props.IntProperty(
+        name="Compression level",
+        description="Draco compression level",
+        default=10,
+        min=0,
+        max=10
+    )
+
     for blender_class in blender_classes:
         bpy.utils.register_class(blender_class)
 
@@ -162,4 +179,6 @@ def unregister():
     for blender_class in blender_classes:
         bpy.utils.unregister_class(blender_class)
     del bpy.types.Scene.dir_path
+    del bpy.types.Scene.filename_path
     del bpy.types.Scene.draco
+    del bpy.types.Scene.draco_level
