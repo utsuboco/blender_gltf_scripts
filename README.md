@@ -1,4 +1,5 @@
 # Blender Addon for GLTF
+![image](https://user-images.githubusercontent.com/15867665/120925965-e67b1a00-c715-11eb-86be-e177ca2a83b1.png)
 
 ### Installation
 download this repo, then install it through to Blender Preferences > Add-ons -> Install
