@@ -103,7 +103,7 @@ def main_gltf(context):
         context.scene.filename_path = 'scene'
         name = 'scene'
 
-    fn = os.path.join(basedir, name) + ".glb"
+    fn = os.path.join(basedir, name)
 
     wm = bpy.types.WindowManager
     props = wm.operator_properties_last("export_scene.gltf")
