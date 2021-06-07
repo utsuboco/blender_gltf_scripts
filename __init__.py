@@ -5,27 +5,35 @@
 import os
 import bpy
 from bpy_extras.io_utils import ExportHelper
-
+import time
 bl_info = {
     "name": "GLTF Scripts",
     "author": "Renaud Rohlinger <renaudrohlinger@gmail.com>",
-    "version": (1, 0),
+    "version": (1, 1),
     "blender": (2, 83, 0),
-    "description": "GLTF script utilies",
+    "description": "GLTF script utilities",
     "category": "",
     "location": "3D Viewport",
     "doc_url": "https://github.com/RenaudRohlinger/blender_gltf_scripts",
     "tracker_url": "https://github.com/RenaudRohlinger/blender_gltf_scripts"
 }
 
+loading = False
+
 
 def main(context):
+    bpy.context.window.cursor_set("WAIT")
+    loading = True
+    # preevent the undo to not work
+    bpy.ops.object.mode_set(mode="OBJECT")
+
+    bpy.ops.object.select_all(action='DESELECT')
 
     # Auto select the camera
     objects = bpy.context.scene.objects
+
     for obj in objects:
         obj.select_set(obj.type == "CAMERA")
-
     # select the camera and get the first and last animation frame
     a = bpy.context.selected_objects[0].animation_data.action
     frame_start, frame_end = map(int, a.frame_range)
@@ -38,21 +46,44 @@ def main(context):
         basedir = bpy.path.abspath(context.scene.dir_path)
 
     name = os.path.splitext(os.path.basename(bpy.data.filepath))[0]
-    fn = os.path.join(basedir, name)
+
+    if context.scene.filename_path:
+        name = context.scene.filename_path
+
+    if not name:
+        context.scene.filename_path = 'scene'
+        name = 'scene'
+
+    fn = os.path.join(basedir, name) + "_camera.glb"
     # Auto bake with first and last frame
     bpy.ops.nla.bake(frame_start=frame_start, frame_end=frame_end,
                      visual_keying=True, clear_constraints=True, bake_types={'OBJECT'})
 
-    # Export glb in the same folder as the blend file
+    wm = bpy.types.WindowManager
+    props = wm.operator_properties_last("export_scene.gltf")
+    dic = {}
+    for k, v in props.items():
+        dic[k] = v
+
+    useAdvanced = False
+    if context.scene.advanced_mode:
+        useAdvanced = True
+        if props:
+            fn = dic['filepath'][:-4] + "_camera.glb"
+
     bpy.ops.export_scene.gltf(
-        filepath=fn + "_camera.glb",
+        filepath=fn,
         check_existing=True,
         export_format='GLB',
         ui_tab='GENERAL',
         use_selection=True,
         export_draco_mesh_compression_level=context.scene.draco_level,
-        export_draco_mesh_compression_enable=context.scene.draco)
+        export_draco_mesh_compression_enable=False)
 
+    bpy.ops.ed.undo()
+
+    bpy.context.window.cursor_set("DEFAULT")
+    loading = False
     pass
 
 
@@ -72,15 +103,36 @@ def main_gltf(context):
         context.scene.filename_path = 'scene'
         name = 'scene'
 
-    fn = os.path.join(basedir, name)
+    fn = os.path.join(basedir, name) + ".glb"
 
-    bpy.ops.export_scene.gltf(
-        filepath=fn + ".glb",
-        check_existing=True,
-        export_format='GLB',
-        ui_tab='GENERAL',
-        export_draco_mesh_compression_level=context.scene.draco_level,
-        export_draco_mesh_compression_enable=context.scene.draco)
+    wm = bpy.types.WindowManager
+    props = wm.operator_properties_last("export_scene.gltf")
+    dic = {}
+    for k, v in props.items():
+        dic[k] = v
+
+    if props and context.scene.advanced_mode:
+        fn = dic['filepath']
+        dic['export_draco_mesh_compression_enable'] = False if context.scene.instance or context.scene.unlit else dic['export_draco_mesh_compression_enable']
+        bpy.ops.export_scene.gltf(**dic)
+    else:
+        bpy.ops.export_scene.gltf(
+            filepath=fn + ".glb",
+            check_existing=True,
+            export_format='GLB',
+            ui_tab='GENERAL',
+            export_draco_mesh_compression_level=context.scene.draco_level,
+            export_draco_mesh_compression_enable=False if context.scene.instance or context.scene.unlit else context.scene.draco)
+
+    if context.scene.unlit:
+        os.system('gltf-transform unlit ' + fn + ' ' + fn)
+
+    if context.scene.instance:
+        os.system('gltf-transform instance ' + fn + ' ' + fn)
+
+    if context.scene.instance or context.scene.unlit:
+        os.system('gltf-transform draco ' + fn + ' ' + fn)
+
     pass
 
 
@@ -90,7 +142,11 @@ class SimpleGLTF(bpy.types.Operator):
 
     def execute(self, context):
         try:
+            bpy.context.window.cursor_set("WAIT")
+            loading = True
             main_gltf(context)
+            bpy.context.window.cursor_set("DEFAULT")
+            loading = False
             return {'FINISHED'}
         except Exception as e:
             print("something went wrong")
@@ -101,21 +157,28 @@ class SimpleGLTF(bpy.types.Operator):
 class BakeCamera(bpy.types.Operator):
     bl_idname = "object.simple_operator"
     bl_label = "Camera Bake Export"
+    #bl_options = {"REGISTER", "UNDO"}
 
     def execute(self, context):
         try:
-            # preevent the undo to not work
-            bpy.ops.object.mode_set(mode="OBJECT")
-            bpy.ops.object.select_all(action='DESELECT')
-            bpy.ops.ed.undo_push()
+            bpy.ops.ed.undo_push(message="Camera Bake")
             main(context)
-            # undo bake script
             bpy.ops.ed.undo()
+
             return {'FINISHED'}
         except Exception as e:
             print("something went wrong")
             # raise the exception again
             raise e
+
+
+class WMConfig(bpy.types.Operator):
+    bl_idname = "object.use_wm_config"
+    bl_label = "Use last gltf export config"
+
+    def execute(self, context):
+        bpy.ops.export_scene.gltf()
+        return {'FINISHED'}
 
 
 class GLTF_PT_Panel(bpy.types.Panel):
@@ -126,27 +189,66 @@ class GLTF_PT_Panel(bpy.types.Panel):
     bl_label = "Quick GLTF Export"
 
     def draw(self, context):
+        scn = context.scene
         layout = self.layout
 
+        wm = bpy.types.WindowManager
+        props = wm.operator_properties_last("export_scene.gltf")
+
+        row = layout.row()
+        label = "Advanced mode ON" if context.scene.advanced_mode else "Advanced mode OFF"
+        row.prop(context.scene, 'advanced_mode', text=label, toggle=True)
         col = layout.column()
-        col.prop(context.scene, 'dir_path')
-        col.prop(context.scene, 'filename_path')
+
+        box = layout.box()
+        col = box.column()
+        row = col.row()
+
+        if context.scene.advanced_mode:
+            if props:
+                if scn.show_options_01:
+                    row.prop(scn, "show_options_01",
+                             icon="DOWNARROW_HLT", text="", emboss=False)
+                else:
+                    row.prop(scn, "show_options_01",
+                             icon="RIGHTARROW", text="", emboss=False)
+
+                row.label(text='Configuration')
+                if scn.show_options_01:
+                    for k, v in props.items():
+                        col.label(text=k + ': ' + str(v))
+        else:
+            col.prop(context.scene, 'dir_path')
+            col.prop(context.scene, 'filename_path')
+            col.prop(context.scene, 'draco')
+            col.prop(context.scene, 'draco_level')
 
         col2 = layout.column(align=True)
-        col2.prop(context.scene, 'draco')
-        col2.prop(context.scene, 'draco_level')
-        layout.operator('object.simple_operator', icon='VIEW_CAMERA')
-        layout.operator('object.simple_gltf', icon='SHADERFX')
+        if context.scene.advanced_mode and not props.items():
+            col.label(
+                text='-export once required-', icon='GHOST_DISABLED')
+        else:
+            col2.prop(context.scene, 'unlit')
+            col2.prop(context.scene, 'instance')
+
+            layout.operator('object.simple_operator',
+                            icon='VIEW_CAMERA', depress=loading)
+            layout.operator('object.simple_gltf',
+                            icon='SORTTIME' if loading else 'SHADERFX', depress=loading)
 
 
 blender_classes = [
     BakeCamera,
     SimpleGLTF,
-    GLTF_PT_Panel
+    GLTF_PT_Panel,
+    WMConfig
 ]
 
 
 def register():
+    bpy.types.Scene.show_options_01 = bpy.props.BoolProperty(
+        name='Show advanced panel', default=True)
+
     bpy.types.Scene.dir_path = bpy.props.StringProperty(
         name="Path",
         default="",
@@ -159,8 +261,18 @@ def register():
         description="Define the filename of the exported glb",
     )
     bpy.types.Scene.draco = bpy.props.BoolProperty(
-        name="Use Draco compression",
+        name="Use Draco Compression",
         description="Use Draco Compression",
+        default=False
+    )
+    bpy.types.Scene.advanced_mode = bpy.props.BoolProperty(
+        name="Use Advance mode",
+        description="Advanced mode",
+        default=False
+    )
+    bpy.types.Scene.gltf_sys = bpy.props.BoolProperty(
+        name="Use Last GLTF Config",
+        description="Use the last GLTF config of blender",
         default=False
     )
     bpy.types.Scene.draco_level = bpy.props.IntProperty(
@@ -169,6 +281,16 @@ def register():
         default=10,
         min=0,
         max=10
+    )
+    bpy.types.Scene.unlit = bpy.props.BoolProperty(
+        name="Use KHR Unlit",
+        description="Convert materials from metal/rough to unlit",
+        default=False
+    )
+    bpy.types.Scene.instance = bpy.props.BoolProperty(
+        name="Use EXT_mesh_gpu_instancing",
+        description="Create GPU instances from shared Mesh references ",
+        default=False
     )
 
     for blender_class in blender_classes:
@@ -182,3 +304,6 @@ def unregister():
     del bpy.types.Scene.filename_path
     del bpy.types.Scene.draco
     del bpy.types.Scene.draco_level
+    del bpy.types.Scene.unlit
+    del bpy.types.Scene.instance
+    del bpy.types.Scene.gltf_sys
