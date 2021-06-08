@@ -17,4 +17,4 @@ These features requires the module [@gltf-transform/cli](https://gltf-transform.
 ### Todo
 - Bake camera: Handle multiple camera
 - Bake camera: Handle error if no camera are in the scene
-- Bake camera: Handle error if the camera as no animations of frame_end
+- Bake camera: Handle error if the camera has no animations or frame_end
