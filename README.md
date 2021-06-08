@@ -12,3 +12,9 @@ It's recommend to have only 1 camera as the script will pick the first available
 
 These features requires the module [@gltf-transform/cli](https://gltf-transform.donmccurdy.com/cli.html) on your system:
 `npm install --global @gltf-transform/cli`
+
+
+### Todo
+- Bake camera: Handle multiple camera
+- Bake camera: Handle error if no camera are in the scene
+- Bake camera: Handle error if the camera as no animations of frame_end
