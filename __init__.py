@@ -21,7 +21,7 @@ bl_info = {
 loading = False
 
 
-def main(context):
+def main(self, context):
     bpy.context.window.cursor_set("WAIT")
     loading = True
     # preevent the undo to not work
@@ -58,6 +58,8 @@ def main(context):
     # Auto bake with first and last frame
     bpy.ops.nla.bake(frame_start=frame_start, frame_end=frame_end,
                      visual_keying=True, clear_constraints=True, bake_types={'OBJECT'})
+    self.report({'INFO'}, 'Bake camera from frame ' +
+                str(frame_start) + ' to frame ' + str(frame_end))
 
     wm = bpy.types.WindowManager
     props = wm.operator_properties_last("export_scene.gltf")
@@ -79,6 +81,7 @@ def main(context):
         use_selection=True,
         export_draco_mesh_compression_level=context.scene.draco_level,
         export_draco_mesh_compression_enable=False)
+    self.report({'INFO'}, 'GLTF Export completed')
 
     bpy.ops.ed.undo()
 
@@ -87,7 +90,7 @@ def main(context):
     pass
 
 
-def main_gltf(context):
+def main_gltf(self, context):
     # name of the glb generated based on the name of the .blend file
     basedir = os.path.dirname(bpy.data.filepath)
     # add user basedir path if available
@@ -123,16 +126,19 @@ def main_gltf(context):
             ui_tab='GENERAL',
             export_draco_mesh_compression_level=context.scene.draco_level,
             export_draco_mesh_compression_enable=False if context.scene.instance or context.scene.unlit else context.scene.draco)
+        self.report({'INFO'}, 'GLTF Export completed')
 
     if context.scene.unlit:
         os.system('gltf-transform unlit ' + fn + ".glb" + ' ' + fn + ".glb")
-        print('gltf-transform unlit ' + fn + ".glb" + ' ' + fn + ".glb")
+        self.report({'INFO'}, 'KHR Unlit applied')
 
     if context.scene.instance:
         os.system('gltf-transform instance ' + fn + ".glb" + ' ' + fn + ".glb")
+        self.report({'INFO'}, 'KHR Instance applied')
 
     if (context.scene.instance or context.scene.unlit) and context.scene.draco:
         os.system('gltf-transform draco ' + fn + ".glb" + ' ' + fn + ".glb")
+        self.report({'INFO'}, 'Draco compression applied')
 
     pass
 
@@ -143,14 +149,19 @@ class SimpleGLTF(bpy.types.Operator):
 
     def execute(self, context):
         try:
+            self.report(
+                {'INFO'}, '----- ----- ----- GLTF Scripts ----- ----- -----')
+            self.report(
+                {'INFO'}, 'Quick GLB Export processing')
             bpy.context.window.cursor_set("WAIT")
             loading = True
-            main_gltf(context)
+            main_gltf(self, context)
             bpy.context.window.cursor_set("DEFAULT")
             loading = False
             return {'FINISHED'}
         except Exception as e:
-            print("something went wrong")
+            print("Something went wrong")
+            self.report({'ERROR'}, 'Something went wrong')
             # raise the exception again
             raise e
 
@@ -158,17 +169,21 @@ class SimpleGLTF(bpy.types.Operator):
 class BakeCamera(bpy.types.Operator):
     bl_idname = "object.simple_operator"
     bl_label = "Camera Bake Export"
-    #bl_options = {"REGISTER", "UNDO"}
+    # bl_options = {"REGISTER", "UNDO"}
 
     def execute(self, context):
         try:
+            self.report(
+                {'INFO'}, '----- ----- ----- GLTF Scripts ----- ----- -----')
+            self.report({'INFO'}, 'Camera Bake processing')
             bpy.ops.ed.undo_push(message="Camera Bake")
-            main(context)
+            main(self, context)
             bpy.ops.ed.undo()
 
             return {'FINISHED'}
         except Exception as e:
-            print("something went wrong")
+            print("Something went wrong")
+            self.report({'ERROR'}, 'Something went wrong')
             # raise the exception again
             raise e
 

@@ -12,6 +12,8 @@ It's recommend to have only 1 camera as the script will pick the first available
 
 These features requires the module [@gltf-transform/cli](https://gltf-transform.donmccurdy.com/cli.html) on your system:
 
+The logs are available in the info tab of blender
+
 `npm install --global @gltf-transform/cli`
 
 --- 
