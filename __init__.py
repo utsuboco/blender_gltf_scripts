@@ -9,8 +9,8 @@ from bpy_extras.io_utils import ExportHelper
 bl_info = {
     "name": "GLTF Scripts",
     "author": "Renaud Rohlinger <renaudrohlinger@gmail.com>",
-    "version": (1, 2),
-    "blender": (2, 83, 0),
+    "version": (1, 3),
+    "blender": (2, 92, 0),
     "description": "GLTF script utilities",
     "category": "",
     "location": "3D Viewport",
@@ -129,16 +129,32 @@ def main_gltf(self, context):
         self.report({'INFO'}, 'GLTF Export completed')
 
     if context.scene.unlit:
-        os.system('gltf-transform unlit ' + fn + ".glb" + ' ' + fn + ".glb")
-        self.report({'INFO'}, 'KHR Unlit applied')
+        import subprocess
+        try:
+            subprocess.run(['gltf-transform',
+                           'unlit', fn + ".glb", fn + ".glb"])
+            self.report({'INFO'}, 'KHR_Unlit compression applied')
+        except:
+            print('gltf-transform',
+                  'unlit', fn + ".glb", fn + ".glb")
+            self.report({'ERROR'}, 'KHR_Unlit failed')
 
     if context.scene.instance:
-        os.system('gltf-transform instance ' + fn + ".glb" + ' ' + fn + ".glb")
-        self.report({'INFO'}, 'KHR Instance applied')
-
+        import subprocess
+        try:
+            subprocess.run(['gltf-transform',
+                           'instance', fn + ".glb", fn + ".glb"])
+            self.report({'INFO'}, 'EXT_GPU_Instancing applied')
+        except:
+            self.report({'ERROR'}, 'EXT_GPU_Instancing failed')
     if (context.scene.instance or context.scene.unlit) and context.scene.draco:
-        os.system('gltf-transform draco ' + fn + ".glb" + ' ' + fn + ".glb")
-        self.report({'INFO'}, 'Draco compression applied')
+        import subprocess
+        try:
+            subprocess.run(['gltf-transform', 'draco',
+                            fn + ".glb", fn + ".glb"])
+            self.report({'INFO'}, 'Draco compression applied')
+        except:
+            self.report({'ERROR'}, 'Draco failed')
 
     pass
 
@@ -258,6 +274,8 @@ blender_classes = [
     SimpleGLTF,
     GLTF_PT_Panel,
     WMConfig
+
+
 ]
 
 
