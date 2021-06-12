@@ -5,11 +5,11 @@
 import os
 import bpy
 from bpy_extras.io_utils import ExportHelper
-import time
+
 bl_info = {
     "name": "GLTF Scripts",
     "author": "Renaud Rohlinger <renaudrohlinger@gmail.com>",
-    "version": (1, 1),
+    "version": (1, 2),
     "blender": (2, 83, 0),
     "description": "GLTF script utilities",
     "category": "",
@@ -125,13 +125,14 @@ def main_gltf(context):
             export_draco_mesh_compression_enable=False if context.scene.instance or context.scene.unlit else context.scene.draco)
 
     if context.scene.unlit:
-        os.system('gltf-transform unlit ' + fn + ' ' + fn)
+        os.system('gltf-transform unlit ' + fn + ".glb" + ' ' + fn + ".glb")
+        print('gltf-transform unlit ' + fn + ".glb" + ' ' + fn + ".glb")
 
     if context.scene.instance:
-        os.system('gltf-transform instance ' + fn + ' ' + fn)
+        os.system('gltf-transform instance ' + fn + ".glb" + ' ' + fn + ".glb")
 
-    if context.scene.instance or context.scene.unlit:
-        os.system('gltf-transform draco ' + fn + ' ' + fn)
+    if (context.scene.instance or context.scene.unlit) and context.scene.draco:
+        os.system('gltf-transform draco ' + fn + ".glb" + ' ' + fn + ".glb")
 
     pass
 
