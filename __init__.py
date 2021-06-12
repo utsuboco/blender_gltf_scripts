@@ -115,9 +115,10 @@ def main_gltf(self, context):
         dic[k] = v
 
     if props and context.scene.advanced_mode:
-        fn = dic['filepath']
+        fn = dic['filepath'][:-4]
         dic['export_draco_mesh_compression_enable'] = False if context.scene.instance or context.scene.unlit else dic['export_draco_mesh_compression_enable']
         bpy.ops.export_scene.gltf(**dic)
+        self.report({'INFO'}, 'GLTF Export completed')
     else:
         bpy.ops.export_scene.gltf(
             filepath=fn + ".glb",
@@ -147,6 +148,7 @@ def main_gltf(self, context):
             self.report({'INFO'}, 'EXT_GPU_Instancing applied')
         except:
             self.report({'ERROR'}, 'EXT_GPU_Instancing failed')
+
     if (context.scene.instance or context.scene.unlit) and context.scene.draco:
         import subprocess
         try:
