@@ -161,6 +161,17 @@ def main(self, context):
 
 
 def main_gltf(self, context):
+
+    bpy.ops.object.select_all(action='SELECT')
+    useInstance = False
+    # preevent the undo to not work
+    collections = bpy.data.collections
+    for collection in collections:
+        if collection.users_dupli_group:
+            useInstance = True
+            for obj in collection.all_objects:
+                obj.select_set(False)
+
     # name of the glb generated based on the name of the .blend file
     basedir = os.path.dirname(bpy.data.filepath)
     # add user basedir path if available
@@ -187,6 +198,7 @@ def main_gltf(self, context):
     if props and context.scene.advanced_mode:
         fn = dic['filepath'][:-4]
         dic['export_draco_mesh_compression_enable'] = False if context.scene.unlit else dic['export_draco_mesh_compression_enable']
+        dic['use_selection'] = True if useInstance else dic['use_selection']
         bpy.ops.export_scene.gltf(**dic)
         self.report({'INFO'}, 'GLTF Export completed')
     else:
@@ -195,6 +207,7 @@ def main_gltf(self, context):
             check_existing=True,
             export_format='GLB',
             ui_tab='GENERAL',
+            use_selection=True,
             export_draco_mesh_compression_level=context.scene.draco_level,
             export_draco_mesh_compression_enable=False if context.scene.unlit else context.scene.draco)
         self.report({'INFO'}, 'GLTF Export completed')
@@ -217,6 +230,8 @@ def main_gltf(self, context):
         except:
             self.report({'ERROR'}, 'Draco failed')
 
+    bpy.ops.ed.undo()
+
     pass
 
 
@@ -233,6 +248,7 @@ class SimpleGLTF(bpy.types.Operator):
             bpy.context.window.cursor_set("WAIT")
             loading = True
             main_gltf(self, context)
+            bpy.ops.ed.undo()
             bpy.context.window.cursor_set("DEFAULT")
             loading = False
             return {'FINISHED'}
