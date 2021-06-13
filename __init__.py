@@ -9,7 +9,7 @@ from bpy_extras.io_utils import ExportHelper
 bl_info = {
     "name": "GLTF Scripts",
     "author": "Renaud Rohlinger <renaudrohlinger@gmail.com>",
-    "version": (1, 3),
+    "version": (1, 4),
     "blender": (2, 92, 0),
     "description": "GLTF script utilities",
     "category": "",
@@ -19,6 +19,78 @@ bl_info = {
 }
 
 loading = False
+
+
+def main_instance(self, context):
+    bpy.context.window.cursor_set("WAIT")
+    loading = True
+    bpy.ops.object.select_all(action='DESELECT')
+
+    # preevent the undo to not work
+    collections = bpy.data.collections
+    for collection in collections:
+        if collection.users_dupli_group:
+            for obj in collection.all_objects:
+                obj.select_set(True)
+
+    # name of the glb generated based on the name of the .blend file
+    basedir = os.path.dirname(bpy.data.filepath)
+
+    # add user basedir path if available
+    if context.scene.dir_path:
+        basedir = bpy.path.abspath(context.scene.dir_path)
+
+    name = os.path.splitext(os.path.basename(bpy.data.filepath))[0]
+
+    if context.scene.filename_path:
+        name = context.scene.filename_path
+
+    if not name:
+        context.scene.filename_path = 'scene'
+        name = 'scene'
+
+    fn = os.path.join(basedir, name) + "_gpu.glb"
+
+    wm = bpy.types.WindowManager
+    props = wm.operator_properties_last("export_scene.gltf")
+    dic = {}
+    for k, v in props.items():
+        dic[k] = v
+
+    if context.scene.advanced_mode:
+        if props:
+            fn = dic['filepath'][:-4] + "_gpu.glb"
+
+    bpy.ops.export_scene.gltf(
+        filepath=fn,
+        check_existing=True,
+        export_format='GLB',
+        ui_tab='GENERAL',
+        use_selection=True,
+        export_draco_mesh_compression_level=context.scene.draco_level,
+        export_draco_mesh_compression_enable=False)
+    self.report({'INFO'}, 'GLTF Export completed')
+
+    if context.scene.unlit:
+        import subprocess
+        try:
+            subprocess.run(['gltf-transform',
+                           'unlit', fn, fn])
+            self.report({'INFO'}, 'KHR_Unlit compression applied')
+        except:
+            self.report({'ERROR'}, 'KHR_Unlit failed')
+
+    import subprocess
+    try:
+        subprocess.run(['gltf-transform',
+                        'instance', fn, fn])
+        self.report({'INFO'}, 'EXT_GPU_Instancing applied')
+    except:
+        self.report({'ERROR'}, 'EXT_GPU_Instancing failed')
+
+    bpy.context.window.cursor_set("DEFAULT")
+    loading = False
+    pass
 
 
 def main(self, context):
@@ -67,9 +139,7 @@ def main(self, context):
     for k, v in props.items():
         dic[k] = v
 
-    useAdvanced = False
     if context.scene.advanced_mode:
-        useAdvanced = True
         if props:
             fn = dic['filepath'][:-4] + "_camera.glb"
 
@@ -116,7 +186,7 @@ def main_gltf(self, context):
 
     if props and context.scene.advanced_mode:
         fn = dic['filepath'][:-4]
-        dic['export_draco_mesh_compression_enable'] = False if context.scene.instance or context.scene.unlit else dic['export_draco_mesh_compression_enable']
+        dic['export_draco_mesh_compression_enable'] = False if context.scene.unlit else dic['export_draco_mesh_compression_enable']
         bpy.ops.export_scene.gltf(**dic)
         self.report({'INFO'}, 'GLTF Export completed')
     else:
@@ -126,7 +196,7 @@ def main_gltf(self, context):
             export_format='GLB',
             ui_tab='GENERAL',
             export_draco_mesh_compression_level=context.scene.draco_level,
-            export_draco_mesh_compression_enable=False if context.scene.instance or context.scene.unlit else context.scene.draco)
+            export_draco_mesh_compression_enable=False if context.scene.unlit else context.scene.draco)
         self.report({'INFO'}, 'GLTF Export completed')
 
     if context.scene.unlit:
@@ -136,20 +206,9 @@ def main_gltf(self, context):
                            'unlit', fn + ".glb", fn + ".glb"])
             self.report({'INFO'}, 'KHR_Unlit compression applied')
         except:
-            print('gltf-transform',
-                  'unlit', fn + ".glb", fn + ".glb")
             self.report({'ERROR'}, 'KHR_Unlit failed')
 
-    if context.scene.instance:
-        import subprocess
-        try:
-            subprocess.run(['gltf-transform',
-                           'instance', fn + ".glb", fn + ".glb"])
-            self.report({'INFO'}, 'EXT_GPU_Instancing applied')
-        except:
-            self.report({'ERROR'}, 'EXT_GPU_Instancing failed')
-
-    if (context.scene.instance or context.scene.unlit) and context.scene.draco:
+    if context.scene.unlit and context.scene.draco:
         import subprocess
         try:
             subprocess.run(['gltf-transform', 'draco',
@@ -206,13 +265,24 @@ class BakeCamera(bpy.types.Operator):
             raise e
 
 
-class WMConfig(bpy.types.Operator):
-    bl_idname = "object.use_wm_config"
-    bl_label = "Use last gltf export config"
+class GLTF_Instance(bpy.types.Operator):
+    bl_idname = "object.gltf_instance"
+    bl_label = "Generates GPU Instance"
 
     def execute(self, context):
-        bpy.ops.export_scene.gltf()
-        return {'FINISHED'}
+        try:
+            self.report(
+                {'INFO'}, '----- ----- ----- GLTF Scripts ----- ----- -----')
+            self.report({'INFO'}, 'GPU Instance processing')
+            bpy.ops.ed.undo_push(message="GPU Instance")
+            main_instance(self, context)
+            bpy.ops.ed.undo()
+            return {'FINISHED'}
+        except Exception as e:
+            print("Something went wrong")
+            self.report({'ERROR'}, 'Something went wrong')
+            # raise the exception again
+            raise e
 
 
 class GLTF_PT_Panel(bpy.types.Panel):
@@ -263,19 +333,20 @@ class GLTF_PT_Panel(bpy.types.Panel):
                 text='-export once required-', icon='GHOST_DISABLED')
         else:
             col2.prop(context.scene, 'unlit')
-            col2.prop(context.scene, 'instance')
 
             layout.operator('object.simple_operator',
                             icon='VIEW_CAMERA', depress=loading)
+            layout.operator('object.gltf_instance',
+                            icon='STICKY_UVS_LOC', depress=loading)
             layout.operator('object.simple_gltf',
-                            icon='SORTTIME' if loading else 'SHADERFX', depress=loading)
+                            icon='SHADERFX', depress=loading)
 
 
 blender_classes = [
     BakeCamera,
     SimpleGLTF,
     GLTF_PT_Panel,
-    WMConfig
+    GLTF_Instance
 
 
 ]
@@ -323,11 +394,6 @@ def register():
         description="Convert materials from metal/rough to unlit",
         default=False
     )
-    bpy.types.Scene.instance = bpy.props.BoolProperty(
-        name="Use EXT_mesh_gpu_instancing",
-        description="Create GPU instances from shared Mesh references ",
-        default=False
-    )
 
     for blender_class in blender_classes:
         bpy.utils.register_class(blender_class)
@@ -341,5 +407,4 @@ def unregister():
     del bpy.types.Scene.draco
     del bpy.types.Scene.draco_level
     del bpy.types.Scene.unlit
-    del bpy.types.Scene.instance
     del bpy.types.Scene.gltf_sys

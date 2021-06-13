@@ -6,7 +6,7 @@
 download this repo, then install it through to Blender Preferences > Add-ons -> Install
 
 ### Bake Camera
-It's recommend to have only 1 camera as the script will pick the first available camera. It will then export a glb file containing only the camera and its action baked
+It's recommend to have only 1 camera as the script will pick the first available camera. It will export a glb file containing only the camera named `filename_camera.glb` and its action baked.
 
 ### KHR Unlit and EXT_mesh_gpu_instancing
 
@@ -19,6 +19,9 @@ These features requires the module [@gltf-transform/cli](https://gltf-transform.
 The logs are available in the info tab of blender
 
 `npm install --global @gltf-transform/cli`
+
+#### EXT_mesh_gpu_instancing
+EXT_mesh_gpu_instancing will export a glb file containing only the gpu compatible collections under the name `filename_gpu.glb`.
 
 --- 
 ### Todo
