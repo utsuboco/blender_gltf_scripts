@@ -23,6 +23,11 @@ The logs are available in the info tab of blender
 #### EXT_mesh_gpu_instancing
 EXT_mesh_gpu_instancing will export a glb file containing only the gpu compatible collections under the name `filename_gpu.glb`.
 
+### TLDR:
+- `filename_camera.glb` for camera baked animation.
+- `filename_gpu.glb` for instances.
+- `filename.glb` for the typical gltf export.
+
 --- 
 ### Todo
 - Bake camera: Handle multiple camera
