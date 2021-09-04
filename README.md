@@ -2,6 +2,10 @@
 # Blender Addon for GLTF
 ![ezgif com-gif-maker](https://user-images.githubusercontent.com/15867665/120999352-fc471880-c7c3-11eb-9bfb-16e4de6d5263.gif)
 
+
+### Export curves to es6
+See [blender_curve_export](https://github.com/utsuboco/blender_curve_export)
+
 ### Installation
 download this repo, then install it through to Blender Preferences > Add-ons -> Install
 
