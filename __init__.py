@@ -3,8 +3,15 @@
 # https://github.com/RenaudRohlinger/blender_gltf_scripts
 
 import os
+
+
+if "bpy" in locals():
+    import importlib
+    importlib.reload(apply_all)
+else:
+    from . import apply_all
+
 import bpy
-from bpy_extras.io_utils import ExportHelper
 
 bl_info = {
     "name": "GLTF Scripts",
@@ -20,18 +27,18 @@ bl_info = {
 
 loading = False
 
-
 def main_instance(self, context):
     bpy.context.window.cursor_set("WAIT")
     loading = True
     bpy.ops.object.select_all(action="DESELECT")
 
     # prevent the undo to not work
-    collections = bpy.data.collections
-    for collection in collections:
-        if collection.users_dupli_group:
-            for obj in collection.all_objects:
-                obj.select_set(True)
+    objects=[ob for ob in bpy.context.view_layer.objects if ob.visible_get()]
+
+    mesh = [m for m in objects if m.type == 'MESH']
+
+    for obj in mesh:
+        obj.select_set(True)
 
     # name of the glb generated based on the name of the .blend file
     basedir = os.path.dirname(bpy.data.filepath)
@@ -92,6 +99,86 @@ def main_instance(self, context):
     bpy.context.window.cursor_set("DEFAULT")
     loading = False
     pass
+
+
+
+
+def export_collider(self, context):
+    bpy.context.window.cursor_set("WAIT")
+    loading = True
+    bpy.ops.object.select_all(action="SELECT")
+
+    # prevent the undo to not work
+    # collections = bpy.data.collections
+    # for collection in collections:
+    #     for obj in collection.all_objects:
+    #         obj.select_set(True)
+
+
+
+    bpy.ops.object.select_all(action='DESELECT')
+
+    objects=[ob for ob in bpy.context.view_layer.objects if ob.visible_get()]
+
+    mesh = [m for m in objects if m.type == 'MESH']
+
+    for obj in mesh:
+        obj.select_set(state=True)
+
+        bpy.context.view_layer.objects.active = obj
+
+    apply_all.apply_all_modifier(self, context)
+
+    bpy.ops.object.join()
+
+    # name of the glb generated based on the name of the .blend file
+    basedir = os.path.dirname(bpy.data.filepath)
+
+    # add user basedir path if available
+    if context.scene.dir_path:
+        basedir = bpy.path.abspath(context.scene.dir_path)
+
+    name = os.path.splitext(os.path.basename(bpy.data.filepath))[0]
+
+    if context.scene.filename_path:
+        name = context.scene.filename_path
+
+    if not name:
+        context.scene.filename_path = "scene"
+        name = "scene"
+
+    fn = os.path.join(basedir, name) + "_physic.glb"
+
+    wm = bpy.types.WindowManager
+    props = wm.operator_properties_last("export_scene.gltf")
+    dic = {}
+    for k, v in props.items():
+        dic[k] = v
+
+    if context.scene.advanced_mode:
+        if props:
+            fn = dic["filepath"][:-4] + "_physic.glb"
+
+    bpy.ops.export_scene.gltf(
+        filepath=fn,
+        check_existing=True,
+        export_format="GLB",
+        ui_tab="GENERAL",
+        use_selection=True,
+        export_materials= "NONE",
+        export_colors=False,
+        export_apply=True,
+        export_normals=False,
+        export_texcoords=False,
+        export_draco_mesh_compression_level=context.scene.draco_level,
+        export_draco_mesh_compression_enable=False,
+    )
+    self.report({"INFO"}, "GLTF Export completed")
+
+    bpy.context.window.cursor_set("DEFAULT")
+    loading = False
+    pass
+
 
 
 def main(self, context):
@@ -252,6 +339,25 @@ def main_gltf(self, context):
     pass
 
 
+class GLTF_Collider(bpy.types.Operator):
+    bl_idname = "object.gltf_collider"
+    bl_label = "Collider Export"
+
+    def execute(self, context):
+        try:
+            self.report(
+                {"INFO"}, "----- ----- ----- GLTF Scripts ----- ----- -----")
+            self.report({"INFO"}, "Collider merge processing")
+            bpy.ops.ed.undo_push(message="Collider Export")
+            export_collider(self, context)
+            bpy.ops.ed.undo()
+            return {"FINISHED"}
+        except Exception as e:
+            print("Something went wrong")
+            self.report({"ERROR"}, "Something went wrong")
+            # raise the exception again
+            raise e
+
 class SimpleGLTF(bpy.types.Operator):
     bl_idname = "object.simple_gltf"
     bl_label = "Quick Scene Export"
@@ -264,7 +370,7 @@ class SimpleGLTF(bpy.types.Operator):
             bpy.context.window.cursor_set("WAIT")
             # loading = True
             main_gltf(self, context)
-            # bpy.ops.ed.undo()
+            bpy.ops.ed.undo()
             bpy.context.window.cursor_set("DEFAULT")
             # loading = False
             return {"FINISHED"}
@@ -273,7 +379,6 @@ class SimpleGLTF(bpy.types.Operator):
             self.report({"ERROR"}, "Something went wrong")
             # raise the exception again
             raise e
-
 
 class BakeCamera(bpy.types.Operator):
     bl_idname = "object.simple_operator"
@@ -476,11 +581,13 @@ class GLTF_PT_Panel(bpy.types.Panel):
             )
             layout.operator("object.simple_gltf",
                             icon="SHADERFX", depress=loading)
+            layout.operator("object.gltf_collider",
+                            icon="MOD_BUILD", depress=loading)
             layout.operator("object.curves_export",
                             icon="FORCE_CURVE", depress=loading)
 
 
-blender_classes = [BakeCamera, SimpleGLTF,
+blender_classes = [BakeCamera, SimpleGLTF, GLTF_Collider,
                    GLTF_PT_Panel, GLTF_Instance, Curves_Export]
 
 
