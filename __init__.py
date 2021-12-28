@@ -9,9 +9,11 @@ if "bpy" in locals():
     import importlib
     importlib.reload(apply_all)
     importlib.reload(apply_multi_user)
+    importlib.reload(vertex_color_picker)
 else:
     from . import apply_all
     from . import apply_multi_user
+    from . import vertex_color_picker
 
 import bpy
 
@@ -452,6 +454,23 @@ class GLTF_Instance(bpy.types.Operator):
             # raise the exception again
             raise e
 
+class VertexColorPicker(bpy.types.Operator):
+    bl_idname = "object.color_picker"
+    bl_label = "Vertex color picker"
+
+    def execute(self, context):
+        try:
+            self.report(
+                {"INFO"}, "----- ----- ----- Sougen Scripts ----- ----- -----")
+            self.report({"INFO"}, "Vertex color processing processing")
+            vertex_color_picker.vertex_color_picker(self, context)
+            return {"FINISHED"}
+        except Exception as e:
+            print("Something went wrong")
+            self.report({"ERROR"}, "Something went wrong")
+            # raise the exception again
+            raise e
+
 
 def curves_export(self, context):
     bpy.context.window.cursor_set("WAIT")
@@ -604,6 +623,16 @@ class GLTF_PT_Panel(bpy.types.Panel):
         else:
             col2.prop(context.scene, "unlit")
 
+            box3 = layout.box()
+            col3 = box3.column()
+            row3 = col3.row()
+            row4 = col3.row()
+
+
+            row3.prop(context.scene, "color_treshold")
+            row4.operator(
+                "object.color_picker", icon="MOD_VERTEX_WEIGHT", depress=loading
+            )
             layout.operator(
                 "object.simple_operator", icon="VIEW_CAMERA", depress=loading
             )
@@ -620,8 +649,9 @@ class GLTF_PT_Panel(bpy.types.Panel):
                             icon="EDITMODE_HLT", depress=loading)
 
 
+
 blender_classes = [BakeCamera, SimpleGLTF, GLTF_Collider,
-                   GLTF_PT_Panel, GLTF_Instance, Curves_Export, ApplyMultiUser]
+                   GLTF_PT_Panel, GLTF_Instance, Curves_Export, ApplyMultiUser, VertexColorPicker]
 
 
 def register():
@@ -658,6 +688,14 @@ def register():
         min=0,
         max=10,
     )
+    bpy.types.Scene.color_treshold = bpy.props.FloatProperty(
+        name="Color threshold:",
+        description="Vertex color treshold",
+        default=0.2,
+        min=0.01,
+        max=1,
+    )
+
     bpy.types.Scene.unlit = bpy.props.BoolProperty(
         name="Use KHR Unlit",
         description="Convert materials from metal/rough to unlit",
@@ -675,5 +713,6 @@ def unregister():
     del bpy.types.Scene.filename_path
     del bpy.types.Scene.draco
     del bpy.types.Scene.draco_level
+    del bpy.types.Scene.color_treshold
     del bpy.types.Scene.unlit
     del bpy.types.Scene.gltf_sys

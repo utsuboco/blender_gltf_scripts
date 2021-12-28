@@ -23,7 +23,7 @@ def applyModifierToMultiUser(self, context):
                 linked.append(obj)
     
 
-    bpy.ops.object.make_single_user(object=True, obdata=True, material=False, animation=False, obdata_animation=False)
+    bpy.ops.object.make_single_user(object=True, obdata=True, material=False)
     bpy.ops.object.modifier_apply(modifier="Decimate")
 
 
