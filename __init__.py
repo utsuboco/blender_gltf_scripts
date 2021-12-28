@@ -8,8 +8,10 @@ import os
 if "bpy" in locals():
     import importlib
     importlib.reload(apply_all)
+    importlib.reload(apply_multi_user)
 else:
     from . import apply_all
+    from . import apply_multi_user
 
 import bpy
 
@@ -56,6 +58,14 @@ def main_instance(self, context):
         context.scene.filename_path = "scene"
         name = "scene"
 
+
+
+
+    # here we can apply modifier etc...
+
+
+
+    
     fn = os.path.join(basedir, name) + "_gpu.glb"
 
     wm = bpy.types.WindowManager
@@ -380,6 +390,27 @@ class SimpleGLTF(bpy.types.Operator):
             # raise the exception again
             raise e
 
+class ApplyMultiUser(bpy.types.Operator):
+    bl_idname = "object.apply_multi_user"
+    bl_label = "Apply modifier to multi user"
+
+    def execute(self, context):
+        try:
+            self.report(
+                {"INFO"}, "----- ----- ----- Sougen Scripts ----- ----- -----")
+            self.report({"INFO"}, "Applied modifier to multi user")
+            bpy.context.window.cursor_set("WAIT")
+            # loading = True
+            apply_multi_user.applyModifierToMultiUser(self, context)
+            bpy.context.window.cursor_set("DEFAULT")
+            # loading = False
+            return {"FINISHED"}
+        except Exception as e:
+            print("Something went wrong")
+            self.report({"ERROR"}, "Something went wrong")
+            # raise the exception again
+            raise e
+
 class BakeCamera(bpy.types.Operator):
     bl_idname = "object.simple_operator"
     bl_label = "Camera Bake Export"
@@ -585,10 +616,12 @@ class GLTF_PT_Panel(bpy.types.Panel):
                             icon="MOD_BUILD", depress=loading)
             layout.operator("object.curves_export",
                             icon="FORCE_CURVE", depress=loading)
+            layout.operator("object.apply_multi_user",
+                            icon="EDITMODE_HLT", depress=loading)
 
 
 blender_classes = [BakeCamera, SimpleGLTF, GLTF_Collider,
-                   GLTF_PT_Panel, GLTF_Instance, Curves_Export]
+                   GLTF_PT_Panel, GLTF_Instance, Curves_Export, ApplyMultiUser]
 
 
 def register():
