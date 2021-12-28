@@ -53,7 +53,7 @@ def vertex_color_picker(self, context):
 
     bmesh.update_edit_mesh(me)      
 
-    pprint.pprint(vertices_of_interest)
+    # pprint.pprint(vertices_of_interest)
 
     # you must cast this as a dict manually like  tk = dict(tk) , 
     # if you need it as a dict, but defaultdict will behave mostly the same
