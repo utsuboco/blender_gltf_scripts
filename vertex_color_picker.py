@@ -31,7 +31,7 @@ def vertex_color_picker(self, context):
 
     vcol_averages = {k: avg_col(v) for k, v in tk.items()}
 
-    vertices_of_interest = [k for k, v in vcol_averages.items() if v.r < context.scene.color_treshold]
+    vertices_of_interest = [k for k, v in vcol_averages.items() if v.r < context.scene.color_treshold and v.g == 0. and v.b == 0.]
 
 
     bpy.ops.object.mode_set(mode='EDIT')
@@ -52,6 +52,7 @@ def vertex_color_picker(self, context):
 
 
     bmesh.update_edit_mesh(me)      
+    bpy.ops.mesh.select_mode(use_extend=False, use_expand=False, type='VERT')
 
     # pprint.pprint(vertices_of_interest)
 
